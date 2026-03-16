@@ -15,6 +15,75 @@ const STATIC_DICTIONARY_URL = chrome.runtime.getURL('src/static_dictionary.json'
 
 let staticDictionaryCache = null;
 
+const CN_NUMERAL_MAP = {
+  一: 1,
+  二: 2,
+  三: 3,
+  四: 4,
+  五: 5,
+  六: 6,
+  七: 7,
+  八: 8,
+  九: 9,
+  十: 10
+};
+
+const PATTERN_TRANSLATIONS = [
+  {
+    regex: /^套餐([一二三四五六七八九十\d]+)$/,
+    translate: ([raw]) => `세트${toKoreanNumberString(raw)}`
+  },
+  {
+    regex: /^月销\s*(\d+)$/,
+    translate: ([count]) => `월 판매 ${count}`
+  },
+  {
+    regex: /^已售\s*(\d+)$/,
+    translate: ([count]) => `판매됨 ${count}`
+  },
+  {
+    regex: /^领券减\s*(\d+)$/,
+    translate: ([amount]) => `쿠폰 할인 ${amount}`
+  },
+  {
+    regex: /^下单立减\s*(\d+)$/,
+    translate: ([amount]) => `주문 즉시 할인 ${amount}`
+  },
+  {
+    regex: /^(\d+)件$/,
+    translate: ([count]) => `${count}개`
+  },
+  {
+    regex: /^(\d+)套$/,
+    translate: ([count]) => `${count}세트`
+  },
+  {
+    regex: /^满\s*(\d+)\s*减\s*(\d+)$/,
+    translate: ([threshold, amount]) => `${threshold} 이상 구매 시 ${amount} 할인`
+  }
+];
+
+function toKoreanNumberString(raw) {
+  if (/^\d+$/.test(raw)) {
+    return raw;
+  }
+
+  return String(CN_NUMERAL_MAP[raw] ?? raw);
+}
+
+function translateByPattern(text) {
+  for (const pattern of PATTERN_TRANSLATIONS) {
+    const match = text.match(pattern.regex);
+    if (!match) {
+      continue;
+    }
+
+    return pattern.translate(match.slice(1));
+  }
+
+  return null;
+}
+
 async function loadStaticDictionary() {
   if (staticDictionaryCache) {
     return staticDictionaryCache;
@@ -123,7 +192,8 @@ function normalizeText(text) {
 async function dictionaryTranslate(text, settings) {
   const staticDictionary = await loadStaticDictionary();
   const userDictionary = settings.userDictionary || {};
-  return userDictionary[text] || staticDictionary[text] || null;
+
+  return userDictionary[text] || staticDictionary[text] || translateByPattern(text) || null;
 }
 
 function pruneCache(cache) {
