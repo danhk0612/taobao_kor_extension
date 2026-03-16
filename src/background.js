@@ -6,38 +6,45 @@ const DEFAULT_SETTINGS = {
   sourceLang: 'zh',
   targetLang: 'ko',
   requestChunkSize: 20,
+  userDictionary: {},
   cache: {}
 };
 
 const CACHE_MAX_ENTRIES = 3000;
+const STATIC_DICTIONARY_URL = chrome.runtime.getURL('src/static_dictionary.json');
 
-const STATIC_DICTIONARY = {
-  首页: '홈',
-  我的淘宝: '내 타오바오',
-  登录: '로그인',
-  注册: '회원가입',
-  购物车: '장바구니',
-  收藏夹: '즐겨찾기',
-  消息: '메시지',
-  搜索: '검색',
-  店铺: '상점',
-  全部商品: '전체 상품',
-  立即购买: '바로 구매',
-  加入购物车: '장바구니 담기',
-  客服: '고객센터',
-  评价: '리뷰',
-  销量: '판매량',
-  价格: '가격',
-  综合: '종합',
-  新品: '신상품',
-  更多: '더보기'
-};
+let staticDictionaryCache = null;
+
+async function loadStaticDictionary() {
+  if (staticDictionaryCache) {
+    return staticDictionaryCache;
+  }
+
+  try {
+    const response = await fetch(STATIC_DICTIONARY_URL);
+    if (!response.ok) {
+      throw new Error(`Failed to load static dictionary: ${response.status}`);
+    }
+
+    const dictionary = await response.json();
+    staticDictionaryCache = typeof dictionary === 'object' && dictionary ? dictionary : {};
+  } catch (error) {
+    console.error('[Taobao KO Translator] Static dictionary load failed:', error);
+    staticDictionaryCache = {};
+  }
+
+  return staticDictionaryCache;
+}
 
 async function getSettings() {
   const stored = await chrome.storage.local.get(DEFAULT_SETTINGS);
   return {
     ...DEFAULT_SETTINGS,
     ...stored,
+    userDictionary: {
+      ...DEFAULT_SETTINGS.userDictionary,
+      ...(stored.userDictionary || {})
+    },
     cache: {
       ...DEFAULT_SETTINGS.cache,
       ...(stored.cache || {})
@@ -49,6 +56,29 @@ async function setSettings(next) {
   await chrome.storage.local.set(next);
 }
 
+function sanitizeDictionaryObject(candidate) {
+  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
+    return undefined;
+  }
+
+  const result = {};
+  Object.entries(candidate).forEach(([key, value]) => {
+    if (typeof key !== 'string' || typeof value !== 'string') {
+      return;
+    }
+
+    const normalizedKey = key.trim();
+    const normalizedValue = value.trim();
+    if (!normalizedKey || !normalizedValue) {
+      return;
+    }
+
+    result[normalizedKey] = normalizedValue;
+  });
+
+  return result;
+}
+
 function sanitizeSettingsPatch(payload = {}) {
   const {
     enabled,
@@ -58,6 +88,7 @@ function sanitizeSettingsPatch(payload = {}) {
     sourceLang,
     targetLang,
     requestChunkSize,
+    userDictionary,
     clearCache
   } = payload;
 
@@ -72,6 +103,7 @@ function sanitizeSettingsPatch(payload = {}) {
       Number.isFinite(requestChunkSize) && requestChunkSize > 0
         ? Math.min(100, Math.floor(requestChunkSize))
         : undefined,
+    userDictionary: sanitizeDictionaryObject(userDictionary),
     clearCache: Boolean(clearCache)
   };
 }
@@ -88,8 +120,10 @@ function normalizeText(text) {
   return text.trim();
 }
 
-function dictionaryTranslate(text) {
-  return STATIC_DICTIONARY[text] || null;
+async function dictionaryTranslate(text, settings) {
+  const staticDictionary = await loadStaticDictionary();
+  const userDictionary = settings.userDictionary || {};
+  return userDictionary[text] || staticDictionary[text] || null;
 }
 
 function pruneCache(cache) {
@@ -148,27 +182,28 @@ async function translateTexts(texts) {
   const translated = new Array(texts.length);
   const unresolvedIndexes = [];
 
-  texts.forEach((text, idx) => {
+  for (let idx = 0; idx < texts.length; idx += 1) {
+    const text = texts[idx];
     const normalized = normalizeText(text);
     if (!normalized) {
       translated[idx] = text;
-      return;
+      continue;
     }
 
     if (cache[normalized]) {
       translated[idx] = cache[normalized];
-      return;
+      continue;
     }
 
-    const staticMatch = dictionaryTranslate(normalized);
-    if (staticMatch) {
-      cache[normalized] = staticMatch;
-      translated[idx] = staticMatch;
-      return;
+    const dictionaryMatch = await dictionaryTranslate(normalized, settings);
+    if (dictionaryMatch) {
+      cache[normalized] = dictionaryMatch;
+      translated[idx] = dictionaryMatch;
+      continue;
     }
 
     unresolvedIndexes.push(idx);
-  });
+  }
 
   if (settings.useApi && unresolvedIndexes.length > 0) {
     const chunkSize = Math.max(1, settings.requestChunkSize || 20);
@@ -204,6 +239,7 @@ async function translateTexts(texts) {
 }
 
 chrome.runtime.onInstalled.addListener(async () => {
+  await loadStaticDictionary();
   const settings = await getSettings();
   await setSettings(settings);
 });

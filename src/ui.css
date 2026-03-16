@@ -69,3 +69,23 @@ h1 {
 .options {
   max-width: 680px;
 }
+
+
+.textarea-field {
+  display: block;
+}
+
+.textarea-field span {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.textarea-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 12px;
+}
