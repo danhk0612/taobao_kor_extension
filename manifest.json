@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Taobao Korean UI Translator",
+  "description": "Automatically translates Taobao UI text into Korean.",
+  "version": "0.1.0",
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "*://*.taobao.com/*",
+    "https://*/*",
+    "http://*/*"
+  ],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.taobao.com/*"
+      ],
+      "js": [
+        "src/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Taobao Korean UI Translator",
+    "default_popup": "src/popup.html"
+  },
+  "options_page": "src/options.html"
+}
