@@ -34,12 +34,20 @@ const PATTERN_TRANSLATIONS = [
     translate: ([raw]) => `세트${toKoreanNumberString(raw)}`
   },
   {
+    regex: /^月销\s*(\d+)\+$/,
+    translate: ([count]) => `월 판매 ${count}+`
+  },
+  {
     regex: /^月销\s*(\d+)$/,
     translate: ([count]) => `월 판매 ${count}`
   },
   {
+    regex: /^已售\s*(\d+)\+$/,
+    translate: ([count]) => `판매 ${count}+`
+  },
+  {
     regex: /^已售\s*(\d+)$/,
-    translate: ([count]) => `판매됨 ${count}`
+    translate: ([count]) => `판매 ${count}`
   },
   {
     regex: /^领券减\s*(\d+)$/,
@@ -60,6 +68,26 @@ const PATTERN_TRANSLATIONS = [
   {
     regex: /^满\s*(\d+)\s*减\s*(\d+)$/,
     translate: ([threshold, amount]) => `${threshold} 이상 구매 시 ${amount} 할인`
+  },
+  {
+    regex: /^预计(\d+)小时内发货$/,
+    translate: ([hours]) => `${hours}시간 내 발송 예정`
+  },
+  {
+    regex: /^承诺(\d+)小时内发货$/,
+    translate: ([hours]) => `${hours}시간 내 발송 보장`
+  },
+  {
+    regex: /^近(\d+)个月好评率高达([\d.]+)%$/,
+    translate: ([months, rate]) => `최근 ${months}개월 긍정 리뷰 비율 ${rate}%`
+  },
+  {
+    regex: /^签到可得(\d+)淘金币$/,
+    translate: ([coin]) => `출석 시 ${coin} 타오코인 지급`
+  },
+  {
+    regex: /^超过千人加购$/,
+    translate: () => '1천 명 이상 장바구니 추가'
   }
 ];
 
