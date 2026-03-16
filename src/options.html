@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Taobao Korean UI Translator 설정</title>
+    <link rel="stylesheet" href="./ui.css" />
+  </head>
+  <body>
+    <main class="panel options">
+      <h1>확장 설정</h1>
+
+      <label class="field">
+        <span>자동 번역 활성화</span>
+        <input id="enabled" type="checkbox" />
+      </label>
+
+      <label class="field">
+        <span>번역 API 사용</span>
+        <input id="useApi" type="checkbox" />
+      </label>
+
+      <label class="field">
+        <span>API URL</span>
+        <input id="apiUrl" type="url" placeholder="https://libretranslate.de/translate" />
+      </label>
+
+      <label class="field">
+        <span>API Key (선택)</span>
+        <input id="apiKey" type="password" />
+      </label>
+
+      <label class="field two-cols">
+        <span>원문 언어</span>
+        <input id="sourceLang" type="text" value="zh" maxlength="5" />
+      </label>
+
+      <label class="field two-cols">
+        <span>대상 언어</span>
+        <input id="targetLang" type="text" value="ko" maxlength="5" />
+      </label>
+
+      <label class="field">
+        <span>요청 배치 크기</span>
+        <input id="requestChunkSize" type="number" min="1" max="100" />
+      </label>
+
+      <div class="actions">
+        <button id="save" class="button">저장</button>
+        <button id="clearCache" class="button secondary">캐시 삭제</button>
+      </div>
+
+      <p id="status" class="hint"></p>
+    </main>
+
+    <script src="./options.js" type="module"></script>
+  </body>
+</html>
