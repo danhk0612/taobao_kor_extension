@@ -1,0 +1,91 @@
+:root {
+  color-scheme: light;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+body {
+  margin: 0;
+  min-width: 300px;
+  background: #f4f6f8;
+  color: #1f2937;
+}
+
+.panel {
+  padding: 16px;
+}
+
+h1 {
+  margin: 0 0 14px;
+  font-size: 16px;
+}
+
+.toggle-row,
+.field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.field input[type='url'],
+.field input[type='password'],
+.field input[type='text'],
+.field input[type='number'] {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+}
+
+.button {
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.button.secondary {
+  background: #6b7280;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.hint {
+  color: #4b5563;
+  font-size: 12px;
+  margin-top: 10px;
+}
+
+.options {
+  max-width: 680px;
+}
+
+
+.textarea-field {
+  display: block;
+}
+
+.textarea-field span {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.textarea-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 12px;
+}
