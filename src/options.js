@@ -1,6 +1,13 @@
+const API_PROVIDER_PRESETS = {
+  libretranslate: 'https://libretranslate.de/translate',
+  deepl: 'https://api-free.deepl.com/v2/translate',
+  custom: ''
+};
+
 const formEls = {
   enabled: document.getElementById('enabled'),
   useApi: document.getElementById('useApi'),
+  apiProvider: document.getElementById('apiProvider'),
   apiUrl: document.getElementById('apiUrl'),
   apiKey: document.getElementById('apiKey'),
   sourceLang: document.getElementById('sourceLang'),
@@ -24,6 +31,19 @@ function setStatus(message, isError = false) {
   }, 3000);
 }
 
+function applyProviderPreset(provider) {
+  const preset = API_PROVIDER_PRESETS[provider] ?? '';
+  if (provider !== 'custom') {
+    formEls.apiUrl.value = preset;
+    formEls.apiUrl.readOnly = true;
+  } else {
+    formEls.apiUrl.readOnly = false;
+    if (!formEls.apiUrl.value.trim()) {
+      formEls.apiUrl.value = '';
+    }
+  }
+}
+
 async function getSettings() {
   return chrome.runtime.sendMessage({ type: 'GET_SETTINGS' });
 }
@@ -35,12 +55,14 @@ async function updateSettings(payload) {
 function fillForm(settings) {
   formEls.enabled.checked = Boolean(settings.enabled);
   formEls.useApi.checked = Boolean(settings.useApi);
-  formEls.apiUrl.value = settings.apiUrl || '';
+  formEls.apiProvider.value = settings.apiProvider || 'libretranslate';
+  formEls.apiUrl.value = settings.apiUrl || API_PROVIDER_PRESETS[formEls.apiProvider.value] || '';
   formEls.apiKey.value = settings.apiKey || '';
   formEls.sourceLang.value = settings.sourceLang || 'zh';
   formEls.targetLang.value = settings.targetLang || 'ko';
   formEls.requestChunkSize.value = String(settings.requestChunkSize || 20);
   formEls.userDictionary.value = JSON.stringify(settings.userDictionary || {}, null, 2);
+  applyProviderPreset(formEls.apiProvider.value);
 }
 
 function parseDictionaryInput() {
@@ -79,10 +101,14 @@ function parseDictionaryInput() {
 }
 
 function collectFormValues() {
+  const provider = formEls.apiProvider.value;
+  const apiUrl = provider === 'custom' ? formEls.apiUrl.value.trim() : API_PROVIDER_PRESETS[provider];
+
   return {
     enabled: formEls.enabled.checked,
     useApi: formEls.useApi.checked,
-    apiUrl: formEls.apiUrl.value.trim(),
+    apiProvider: provider,
+    apiUrl,
     apiKey: formEls.apiKey.value.trim(),
     sourceLang: formEls.sourceLang.value.trim() || 'zh',
     targetLang: formEls.targetLang.value.trim() || 'ko',
@@ -95,9 +121,17 @@ async function init() {
   const response = await getSettings();
   fillForm(response.settings);
 
+  formEls.apiProvider.addEventListener('change', () => {
+    applyProviderPreset(formEls.apiProvider.value);
+  });
+
   saveButton.addEventListener('click', async () => {
     try {
       const payload = collectFormValues();
+      if (payload.apiProvider === 'custom' && !payload.apiUrl) {
+        throw new Error('Custom API 사용 시 API URL을 입력하세요.');
+      }
+
       await updateSettings(payload);
       setStatus('저장되었습니다.');
     } catch (error) {

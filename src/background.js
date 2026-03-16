@@ -1,6 +1,7 @@
 const DEFAULT_SETTINGS = {
   enabled: true,
   useApi: false,
+  apiProvider: 'libretranslate',
   apiUrl: 'https://libretranslate.de/translate',
   apiKey: '',
   sourceLang: 'zh',
@@ -12,6 +13,12 @@ const DEFAULT_SETTINGS = {
 
 const CACHE_MAX_ENTRIES = 3000;
 const STATIC_DICTIONARY_URL = chrome.runtime.getURL('src/static_dictionary.json');
+
+const API_PROVIDER_PRESETS = {
+  libretranslate: 'https://libretranslate.de/translate',
+  deepl: 'https://api-free.deepl.com/v2/translate',
+  custom: ''
+};
 
 let staticDictionaryCache = null;
 
@@ -135,7 +142,7 @@ async function loadStaticDictionary() {
 
 async function getSettings() {
   const stored = await chrome.storage.local.get(DEFAULT_SETTINGS);
-  return {
+  const merged = {
     ...DEFAULT_SETTINGS,
     ...stored,
     userDictionary: {
@@ -147,6 +154,12 @@ async function getSettings() {
       ...(stored.cache || {})
     }
   };
+
+  if (!merged.apiUrl && API_PROVIDER_PRESETS[merged.apiProvider]) {
+    merged.apiUrl = API_PROVIDER_PRESETS[merged.apiProvider];
+  }
+
+  return merged;
 }
 
 async function setSettings(next) {
@@ -180,6 +193,7 @@ function sanitizeSettingsPatch(payload = {}) {
   const {
     enabled,
     useApi,
+    apiProvider,
     apiUrl,
     apiKey,
     sourceLang,
@@ -189,9 +203,15 @@ function sanitizeSettingsPatch(payload = {}) {
     clearCache
   } = payload;
 
+  const normalizedProvider =
+    typeof apiProvider === 'string' && ['libretranslate', 'deepl', 'custom'].includes(apiProvider)
+      ? apiProvider
+      : undefined;
+
   return {
     enabled: typeof enabled === 'boolean' ? enabled : undefined,
     useApi: typeof useApi === 'boolean' ? useApi : undefined,
+    apiProvider: normalizedProvider,
     apiUrl: typeof apiUrl === 'string' ? apiUrl.trim() : undefined,
     apiKey: typeof apiKey === 'string' ? apiKey.trim() : undefined,
     sourceLang: typeof sourceLang === 'string' ? sourceLang.trim() || 'zh' : undefined,
@@ -238,7 +258,7 @@ function pruneCache(cache) {
   return cache;
 }
 
-async function translateBatchViaApi(texts, settings) {
+async function translateViaLibreTranslate(texts, settings) {
   const body = {
     q: texts,
     source: settings.sourceLang,
@@ -252,14 +272,12 @@ async function translateBatchViaApi(texts, settings) {
 
   const response = await fetch(settings.apiUrl, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
 
   if (!response.ok) {
-    throw new Error(`Translation API request failed with ${response.status}`);
+    throw new Error(`LibreTranslate request failed with ${response.status}`);
   }
 
   const result = await response.json();
@@ -271,7 +289,48 @@ async function translateBatchViaApi(texts, settings) {
     return [result.translatedText];
   }
 
-  throw new Error('Unexpected translation API response shape');
+  throw new Error('Unexpected LibreTranslate response shape');
+}
+
+async function translateViaDeepL(texts, settings) {
+  if (!settings.apiKey) {
+    throw new Error('DeepL requires an API key');
+  }
+
+  const params = new URLSearchParams();
+  texts.forEach((text) => params.append('text', text));
+  params.append('source_lang', settings.sourceLang.toUpperCase());
+  params.append('target_lang', settings.targetLang.toUpperCase());
+
+  const response = await fetch(settings.apiUrl, {
+    method: 'POST',
+    headers: {
+      Authorization: `DeepL-Auth-Key ${settings.apiKey}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: params.toString()
+  });
+
+  if (!response.ok) {
+    throw new Error(`DeepL request failed with ${response.status}`);
+  }
+
+  const result = await response.json();
+  if (!Array.isArray(result.translations)) {
+    throw new Error('Unexpected DeepL response shape');
+  }
+
+  return result.translations.map((item) => item.text || '');
+}
+
+async function translateBatchViaApi(texts, settings) {
+  const provider = settings.apiProvider || 'libretranslate';
+
+  if (provider === 'deepl') {
+    return translateViaDeepL(texts, settings);
+  }
+
+  return translateViaLibreTranslate(texts, settings);
 }
 
 async function translateTexts(texts) {
@@ -371,6 +430,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             Object.entries(patch).filter(([key, value]) => key !== 'clearCache' && value !== undefined)
           )
         };
+
+        if (patch.apiProvider && patch.apiProvider !== 'custom' && !patch.apiUrl) {
+          nextSettings.apiUrl = API_PROVIDER_PRESETS[patch.apiProvider] || nextSettings.apiUrl;
+        }
 
         if (patch.clearCache) {
           nextSettings.cache = {};

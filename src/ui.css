@@ -31,7 +31,8 @@ h1 {
 .field input[type='url'],
 .field input[type='password'],
 .field input[type='text'],
-.field input[type='number'] {
+.field input[type='number'],
+.field select {
   flex: 1;
   padding: 6px 8px;
   border: 1px solid #d1d5db;
